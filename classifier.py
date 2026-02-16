@@ -23,7 +23,7 @@ y = df.iloc[:, 0 ].values
 
 X = X/255.0
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.7, random_state=42)
 
 class CustomDataset(Dataset):
     def __init__(self, features, labels):
@@ -40,7 +40,9 @@ class CustomDataset(Dataset):
 train_dataset = CustomDataset(X_train,y_train)
 test_dataset = CustomDataset(X_test,y_test)
 
-batchSize = 32
+batchSize = 100
+
+
 trainLoader = DataLoader(train_dataset, batch_size = batchSize, shuffle = True)
 testLoader  = DataLoader(test_dataset , batch_size = batchSize, shuffle = False)
 
@@ -50,11 +52,11 @@ class myNN(nn.Module):
         super().__init__()
         
         self.model = nn.Sequential(
-            nn.Linear(num_features, 128),
+            nn.Linear(num_features, num_features//2),
             nn.ReLU(),
-            nn.Linear(128,64),
+            nn.Linear(num_features//2,num_features//4),
             nn.ReLU(),
-            nn.Linear(64,10)
+            nn.Linear(num_features//4,10)
         )
 
     def forward(self, x):
@@ -74,19 +76,25 @@ optimizer = optim.SGD(model.parameters(),lr = learning_rate)
 
 
 def render(lines):
-    sys.stdout.write("\033[H")   
-    sys.stdout.write("\033[J")   
-    sys.stdout.write("\n".join(lines))
+    sys.stdout.write(f"\033[{len(lines)}A")
+    sys.stdout.write("\n".join(lines) + "\n")
     sys.stdout.flush()
+
+lines = [
+    "+-----------------------------------------+",
+    "|......Training beginning in : 5 sec .....|",
+    "+-----------------------------------------+"
+]
+print("\n".join(lines))
+
 
 for t in range(5, -1, -1):
     render([
         "+-----------------------------------------+",
-       f"|......Training beginning in : {t} sec .....|",
+        f"|......Training beginning in : {t} sec .....|",
         "+-----------------------------------------+"
     ])
     time.sleep(1)
-
 
 print()
 startTrain = time.time()
@@ -110,7 +118,7 @@ for epoch in range(epochs):
     end = time.time()
     avg_loss = total_epoch_loss/len(trainLoader)
     tame = end-start
-    print(f"Epoch: [{epoch+1}]  Loss: [{avg_loss:.3f}] Time Taken: {tame} sec")
+    print(f"Epoch: [{epoch+1}]  Loss: [{avg_loss:.5f}] Time Taken: {tame:.4f} sec")
 endTrain = time.time()
 
 timeTrain = endTrain-startTrain
@@ -133,5 +141,23 @@ with torch.no_grad():
         correct += (predicted == batch_labels).sum().item()
     print()
     print( "==============================================================================")
-    print(f"Accuracy: {(correct/total)*100:.2f}% Total Time taken training: {timeTrain} sec")
+    print(f"Accuracy: {(correct/total)*100:.2f}% Total Time taken training: {timeTrain:.5f} sec")
+    print( "==============================================================================")
+    total = 0
+    correct = 0
+
+    for batch_features, batch_labels in trainLoader:
+        
+        batch_features, batch_labels = batch_features.to(device), batch_labels.to(device)
+
+        output = model(batch_features)
+
+        _, predicted = torch.max(output, 1)
+
+        total += batch_labels.shape[0]
+
+        correct += (predicted == batch_labels).sum().item()
+    print()
+    print( "==============================================================================")
+    print(f"Accuracy: {(correct/total)*100:.2f}% Total Time taken training: {timeTrain:.5f} sec")
     print( "==============================================================================")
